@@ -70,7 +70,15 @@ const PROVIDERS = {
   kimi: {
     title: 'Kimi',
     url: 'https://api.moonshot.cn/v1/users/me/balance',
-    refs: ['MOONSHOTAI_CN_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY'],
+    /**
+     * The international site. A .ai key (or a .cn host that is unreachable
+     * from abroad) falls through here; both sites answer the same shape.
+     */
+    fallback: {
+      url: 'https://api.moonshot.ai/v1/users/me/balance',
+      topUpUrl: 'https://platform.kimi.ai/console/account',
+    },
+    refs: ['MOONSHOTAI_CN_API_KEY', 'MOONSHOTAI_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY'],
     topUpUrl: 'https://platform.kimi.com/console/account',
     /**
      * Kimi answers floats: available = cash + voucher. The gauge reads the
@@ -173,6 +181,70 @@ function failure(providerId, code, extra = {}) {
   return { ok: false, provider: providerId, error: code, ...extra, at: Date.now() };
 }
 
+/** @param providerId - route id. @returns the success body shared by both hosts. */
+function successBody(providerId, credential, balance, topUpUrl, fresh) {
+  return {
+    ok: true,
+    provider: providerId,
+    ref: credential.ref,
+    currency: balance.currency,
+    total: balance.total,
+    recharge: balance.recharge,
+    bonus: balance.bonus,
+    topUpUrl,
+    at: Date.now(),
+    fresh: fresh === true,
+  };
+}
+
+/**
+ * One request against one host, normalized to success/failure.
+ *
+ * `retry` marks the failures that may mean "this account lives on the other
+ * site" — a rejected key (401/403) or a host unreachable from here (network /
+ * timeout). The caller may then try the provider's fallback host once.
+ * @param providerId - route id.
+ * @param credential - `{ ref, key }` resolved for this provider.
+ * @param url - the balance host to probe.
+ * @param parse - the provider's response parser.
+ * @returns `{ ok: true, balance }` or `{ ok: false, retry: boolean, failure: object }`.
+ */
+async function attempt(providerId, credential, url, parse) {
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${credential.key}`, Accept: 'application/json' },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (error) {
+    const code = error?.name === 'TimeoutError' ? 'timeout' : 'network';
+    return { ok: false, retry: true, failure: failure(providerId, code, { ref: credential.ref }) };
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    return { ok: false, retry: true, failure: failure(providerId, 'unauthorized', { ref: credential.ref, status: response.status }) };
+  }
+  if (response.status === 429) {
+    return { ok: false, retry: false, failure: failure(providerId, 'rate-limited', { ref: credential.ref, status: response.status }) };
+  }
+  if (!response.ok) {
+    return { ok: false, retry: false, failure: failure(providerId, 'http', { ref: credential.ref, status: response.status }) };
+  }
+
+  let body = null;
+  try {
+    body = await response.json();
+  } catch (error) {
+    body = null;
+  }
+  const balance = parse(body);
+  if (balance === null) {
+    return { ok: false, retry: false, failure: failure(providerId, 'bad-response', { ref: credential.ref }) };
+  }
+  return { ok: true, balance };
+}
+
 /**
  * Query one provider and normalize every outcome to a JSON body.
  * @param ctx - host plugin context.
@@ -188,51 +260,20 @@ async function probe(ctx, providerId, fresh) {
     return failure(providerId, 'missing-credential', { refs: spec.refs });
   }
 
-  let response;
-  try {
-    response = await fetch(spec.url, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${credential.key}`, Accept: 'application/json' },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-  } catch (error) {
-    const code = error?.name === 'TimeoutError' ? 'timeout' : 'network';
-    return failure(providerId, code, { ref: credential.ref });
+  const primary = await attempt(providerId, credential, spec.url, spec.parse);
+  if (primary.ok === true) {
+    return successBody(providerId, credential, primary.balance, spec.topUpUrl, fresh);
   }
-
-  if (response.status === 401 || response.status === 403) {
-    return failure(providerId, 'unauthorized', { ref: credential.ref, status: response.status });
+  // A key from the other region, or a host unreachable from here, may still
+  // work on the provider's fallback host: try it once.
+  if (primary.retry === true && spec.fallback !== undefined) {
+    const secondary = await attempt(providerId, credential, spec.fallback.url, spec.parse);
+    if (secondary.ok === true) {
+      return successBody(providerId, credential, secondary.balance, spec.fallback.topUpUrl, fresh);
+    }
+    return secondary.failure;
   }
-  if (response.status === 429) {
-    return failure(providerId, 'rate-limited', { ref: credential.ref, status: response.status });
-  }
-  if (!response.ok) {
-    return failure(providerId, 'http', { ref: credential.ref, status: response.status });
-  }
-
-  let body = null;
-  try {
-    body = await response.json();
-  } catch (error) {
-    body = null;
-  }
-  const balance = spec.parse(body);
-  if (balance === null) {
-    return failure(providerId, 'bad-response', { ref: credential.ref });
-  }
-
-  return {
-    ok: true,
-    provider: providerId,
-    ref: credential.ref,
-    currency: balance.currency,
-    total: balance.total,
-    recharge: balance.recharge,
-    bonus: balance.bonus,
-    topUpUrl: spec.topUpUrl,
-    at: Date.now(),
-    fresh: fresh === true,
-  };
+  return primary.failure;
 }
 
 /**

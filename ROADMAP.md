@@ -16,15 +16,15 @@
   - Host 侧遇到 `429` 返回 `rate-limited`（附 `status`），客户端提示「余额接口被限流（429）」，不再混进通用 `http`。
 - **气泡角色改为 `dialog`**（`client.js`）
   - `role="tooltip"` → `role="dialog"` 并补 `aria-label`：气泡内含按钮与链接，按规范应是对话框而非纯提示。
+- **英文 README 成为默认**：`README.md` 为英文，中文在 `README.zh.md`（顶部有语言切换）；安装 / 自检 / 卸载命令去本机化。
+- **Kimi 支持国际站**（`index.js`）：`.cn` 被拒（401/403）或不可达（network/timeout）时，自动重试 `api.moonshot.ai`，并识别 `MOONSHOTAI_API_KEY` 别名。
+- **满格按币种**（`client.js`）：USD 账户用 `$10` 满格并显示 `$`，不再拿 ¥10 除、印 `¥`（`FULL_SCALE_BY_CURRENCY`）。
 
 ## P1 · 计划中（结构性）
 
 | 项 | 现状 | 目标 |
 |---|---|---|
-| 拆分 `client.js`（1310 行） | 内联 CSS + 中英字典 + tracker + channel + 组件同处一文件 | 按职责分模块；`BUBBLE_WIDTH` 与 CSS `width:244px` 的耦合改为单一来源 |
-| 英文 README | 只有中文 | 补 `README.en.md`，国际访客可读 |
-| 安装说明去本机化 | 硬编码 `D:\deepseekHarness\…`、`D:\deepseek-Plugin development\…`，只给 Windows | 通用路径 + 多平台说明 |
-| 满格口径可配置 | `FULL_SCALE` / `FULL_CURRENCY` 写死 ¥10 / CNY，USD 账户比例失真 | 至少按币种取满格；理想做成配置 |
+| 拆分 `client.js`（~1320 行） | 内联 CSS + 中英字典 + tracker + channel + 组件同处一文件（已有分区索引） | 按职责分模块；需引入打包器（esbuild），会破坏"改完重启即生效"的开发流。触发条件：文件 > ~2000 行、或接 3 家以上供应商 |
 
 ## P2 · 计划中（小项）
 
@@ -44,4 +44,4 @@
 
 ## 已知限制
 
-与 [README.md](README.md) 的「已知限制」一节一致：宿主内部 API 依赖、Kimi 国内站、凭据名硬编码、满格常量等。
+与 [README.zh.md](README.zh.md) 的「已知限制」一节一致：宿主内部 API 依赖、Kimi 两站、凭据名硬编码、满格常量表等。

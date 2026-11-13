@@ -248,5 +248,22 @@ apply({
 });
 check('a composition without a web server warns instead of throwing', warned);
 
+console.log('\nkimi — international site fallback');
+credentialScript = { MOONSHOTAI_API_KEY: MOONSHOT_KEY };
+const intlAttempts = [];
+const domesticScript = fetchScript;
+fetchScript = async (url) => {
+  intlAttempts.push(String(url));
+  if (String(url).includes('api.moonshot.cn')) return { status: 401, ok: false, json: async () => ({}) };
+  return { status: 200, ok: true, json: async () => ({ data: { available_balance: 9.5, cash_balance: 1, voucher_balance: 8.5 } }) };
+};
+res = await call(routes, '/dsh-balance-battery/kimi', { query: '?fresh=1' });
+body = jsonOf(res);
+check('a rejected .cn key is retried on the international site', body.ok === true && body.total === 9.5, JSON.stringify(body));
+check('the retry uses the .ai top-up URL', body.topUpUrl === 'https://platform.kimi.ai/console/account', String(body.topUpUrl));
+check('the retry hits api.moonshot.ai', intlAttempts.some((url) => url.includes('api.moonshot.ai')), intlAttempts.join(','));
+check('the .ai alias MOONSHOTAI_API_KEY is resolved', body.ref === 'MOONSHOTAI_API_KEY', String(body.ref));
+fetchScript = domesticScript;
+
 console.log(`\n${failures.length === 0 ? 'PASS' : `FAIL (${failures.length})`}: ${failures.join(', ')}`);
 process.exit(failures.length === 0 ? 0 : 1);

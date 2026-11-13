@@ -100,6 +100,11 @@ window.__ModuleLoader__.load({
     /** Currency the full scale is denominated in. */
     const FULL_CURRENCY = 'CNY';
     /**
+     * Amount one full cell stands for, per currency: a USD account gets a $10
+     * full cell instead of dividing by the CNY scale and printing ¥.
+     */
+    const FULL_SCALE_BY_CURRENCY = { CNY: 10, USD: 10 };
+    /**
      * Width of one cell in percent, so the ruler in the style sheet follows
      * `FULL_SCALE`: one tick per unit, ten ticks for a ¥10 cell.
      */
@@ -383,6 +388,15 @@ window.__ModuleLoader__.load({
     function formatAmount(amount, currency) {
       if (amount === null || amount === undefined || !Number.isFinite(amount)) return '—';
       return `${currencySymbol(currency)}${amount.toFixed(2)}`;
+    }
+
+    /**
+     * The amount one full cell stands for in the given currency.
+     * @param currency - snapshot currency code.
+     * @returns the scale amount (FULL_SCALE for an unlisted currency).
+     */
+    function fullScaleFor(currency) {
+      return FULL_SCALE_BY_CURRENCY[currency] ?? FULL_SCALE;
     }
 
     /**
@@ -988,8 +1002,9 @@ window.__ModuleLoader__.load({
 
     /** The hover/focus readout: amounts, the source switcher, and the top-up link. */
     function Bubble({ snapshot, t, brand, kind, channel, style, placement, level, onEnter, onLeave }) {
-      const ratio = snapshot.amount === null ? 0 : Math.max(0, Math.min(1, snapshot.amount / FULL_SCALE));
-      const full = formatAmount(FULL_SCALE, FULL_CURRENCY);
+      const scale = fullScaleFor(snapshot.currency);
+      const ratio = snapshot.amount === null ? 0 : Math.max(0, Math.min(1, snapshot.amount / scale));
+      const full = formatAmount(scale, snapshot.currency);
       const parts = partsOf(snapshot.kind);
       const rows = [];
       rows.push(h('div', { className: 'dbb-tipRow', key: 'head' }, [
@@ -1146,10 +1161,11 @@ window.__ModuleLoader__.load({
         if (closeTimer.current !== null) clearTimeout(closeTimer.current);
       }, []);
 
-      const ratio = snapshot.amount === null ? 0 : Math.max(0, Math.min(1, snapshot.amount / FULL_SCALE));
+      const scale = fullScaleFor(snapshot.currency);
+      const ratio = snapshot.amount === null ? 0 : Math.max(0, Math.min(1, snapshot.amount / scale));
       const fillRatio = energized ? ratio : 0;
       const level = snapshot.phase === 'ready' ? levelOf(ratio) : 'idle';
-      const full = formatAmount(FULL_SCALE, FULL_CURRENCY);
+      const full = formatAmount(scale, snapshot.currency);
       const amountText = stateText(t, snapshot);
       const brand = brandOf(kind, t);
 
