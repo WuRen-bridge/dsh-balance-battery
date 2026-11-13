@@ -203,6 +203,9 @@ async function probe(ctx, providerId, fresh) {
   if (response.status === 401 || response.status === 403) {
     return failure(providerId, 'unauthorized', { ref: credential.ref, status: response.status });
   }
+  if (response.status === 429) {
+    return failure(providerId, 'rate-limited', { ref: credential.ref, status: response.status });
+  }
   if (!response.ok) {
     return failure(providerId, 'http', { ref: credential.ref, status: response.status });
   }

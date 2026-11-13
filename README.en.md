@@ -35,7 +35,7 @@ Hover (or focus with the keyboard) and the readout opens; it carries its own sou
 | Green (≥ 50%) | `available / ¥10 ≥ 50%` — plenty left |
 | Yellow (20%–50%) | time to top up |
 | Red (< 20%) | running out |
-| Grey/empty | signed out / read failed / no balance API — never fakes a 0 |
+| Grey/empty | signed out / no balance / read failed / no balance API — never fakes a 0 |
 | Full green + amount above ¥10 | available beyond one full cell (e.g. ¥33.32): the cell caps at 100%, the readout still shows the real amount |
 
 Ruler: **¥1 per cell**, ten cells, drawn **over** the fill, so both the spent and the remaining part stay countable.

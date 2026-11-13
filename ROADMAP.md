@@ -3,12 +3,19 @@
 本文件是 `dsh-balance-battery` 1.2.0 开源时的工程自评：哪些已修、哪些计划中、哪些是有意取舍。
 按**影响**排序，不按实现难度。
 
-## P0 · 已修复
+## 已修复
 
 - **请求栅栏由 fail-open 改为 fail-closed**（`index.js`）
   - 原先 `connection` 服务缺失时直接放行，任意同源本地页面都能读到余额。
   - 现在缺服务即返回 `403`：宁可拒绝，也不泄露。
   - `test/host-smoke.mjs` 新增用例覆盖该分支。
+- **空钱包 / 不可解析余额不再显示 ¥0.00**（`client.js`）
+  - `account` 返回 `ready` 但钱包列表为空（或全部不可解析）时，进入新的 `empty` 相位，显示「无余额」并灰显，而不是把 `null` 当 0。
+  - `test/balance-smoke.mjs` 覆盖空钱包与恶意小数两个分支。
+- **429 / 限流单独报错**（`index.js` + `client.js`）
+  - Host 侧遇到 `429` 返回 `rate-limited`（附 `status`），客户端提示「余额接口被限流（429）」，不再混进通用 `http`。
+- **气泡角色改为 `dialog`**（`client.js`）
+  - `role="tooltip"` → `role="dialog"` 并补 `aria-label`：气泡内含按钮与链接，按规范应是对话框而非纯提示。
 
 ## P1 · 计划中（结构性）
 
@@ -21,9 +28,6 @@
 
 ## P2 · 计划中（小项）
 
-- **空钱包不显示 ¥0.00**：`account` 返回 `ready` 但钱包数组为空时，应显示"无余额"而非把 `null` 当 0。
-- **气泡角色改为 `dialog` / popover**：`role="tooltip"` 内含按钮与链接不符合规范，屏幕阅读器行为不确定。
-- **429 / 限流单独报错**：现在混进通用 `http`。
 - **`?fresh=1` 限频**：同源脚本可反复刷、绕过 20s 缓存并消耗供应商额度。
 - **补 CHANGELOG / CONTRIBUTING / issue 模板 / tag 发版**。
 - **触屏可达性**：读数卡的来源芯片 / 刷新依赖 hover，纯触屏够不到。

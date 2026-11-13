@@ -186,6 +186,8 @@ window.__ModuleLoader__.load({
       'state.signedOutDetail': '当前没有已登录的 DeepSeek 账号，余额只在登录后可见；也可切换到其它余额来源。',
       'state.unavailableDetail': '此页面没有挂载账号服务（remote.account）；也可切换到其它余额来源。',
       'state.unsupportedDetail': '当前模型供应商没有余额接口；点击电池或在下方选择一个来源即可查看。',
+      'state.empty': '无余额',
+      'state.emptyDetail': '账户没有返回任何可用余额（钱包列表为空）；这不一定是读取失败，也可能只是尚未充值。',
       'error.remote': '账号服务返回失败',
       'error.platform': 'Platform 暂时没有返回余额',
       'error.network': '连不上余额接口（网络错误）',
@@ -194,6 +196,7 @@ window.__ModuleLoader__.load({
       'error.auth': '余额服务未授权，刷新页面后再试',
       'error.missingKey': '没有找到 {ref}，无法读取 {brand} 余额',
       'error.unauthorized': '{brand} 拒绝了这个 API Key（401）',
+      'error.rateLimited': '{brand} 余额接口被限流（429），请稍后再试',
       'error.render': '电池渲染失败：{message}',
       'brand.unknown': '当前供应商',
     };
@@ -228,6 +231,8 @@ window.__ModuleLoader__.load({
       'state.signedOutDetail': 'No DeepSeek account is signed in; the balance is visible after signing in. Another source can be selected instead.',
       'state.unavailableDetail': 'This page mounted no account service (remote.account). Another source can be selected instead.',
       'state.unsupportedDetail': 'The selected provider exposes no balance endpoint; click the battery or pick a source below.',
+      'state.empty': 'No balance',
+      'state.emptyDetail': 'The account returned no usable balance (empty wallet list); this is not necessarily a read failure — it may simply be unfunded.',
       'error.remote': 'the account service returned a failure',
       'error.platform': 'the balance endpoint returned no balance',
       'error.network': 'network error reaching the balance endpoint',
@@ -236,6 +241,7 @@ window.__ModuleLoader__.load({
       'error.auth': 'the balance service is not authorized — refresh the page',
       'error.missingKey': 'no {ref} found — cannot read the {brand} balance',
       'error.unauthorized': '{brand} rejected the API key (401)',
+      'error.rateLimited': '{brand} balance endpoint is rate-limited (429) — try again later',
       'error.render': 'battery render failed: {message}',
       'brand.unknown': 'this provider',
     };
@@ -697,13 +703,18 @@ window.__ModuleLoader__.load({
           return { phase: 'error', amount: null, recharge: null, bonus: null, error: t('error.platform'), topUpUrl };
         }
         const wallet = pickWallet(value.value);
-        const currency = wallet?.currency ?? FULL_CURRENCY;
+        // A ready response with no usable wallet is not a ¥0.00 balance: a
+        // missing row must not be faked into a zero row. Say "no balance".
+        if (wallet === null) {
+          return { phase: 'empty', amount: null, recharge: null, bonus: null, error: null, topUpUrl };
+        }
+        const currency = wallet.currency;
         const bonus = pickWallet(
           Array.isArray(value.bonusWallets)
             ? value.bonusWallets.filter((row) => row?.currency === currency)
             : [],
         );
-        const recharge = wallet?.amount ?? 0;
+        const recharge = wallet.amount;
         const bonusAmount = bonus?.amount ?? 0;
         return {
           phase: 'ready',
@@ -753,6 +764,7 @@ window.__ModuleLoader__.load({
           }
           if (code === 'timeout') return { phase: 'error', amount: null, recharge: null, bonus: null, error: t('error.timeout') };
           if (code === 'network') return { phase: 'error', amount: null, recharge: null, bonus: null, error: t('error.network') };
+          if (code === 'rate-limited') return { phase: 'error', amount: null, recharge: null, bonus: null, error: t('error.rateLimited', { brand: brandOf(kind, t) }) };
           return { phase: 'error', amount: null, recharge: null, bonus: null, error: t('error.platform') };
         }
         const total = Number(body.total);
@@ -939,6 +951,7 @@ window.__ModuleLoader__.load({
       if (snapshot.phase === 'signed-out') return t('state.signedOut');
       if (snapshot.phase === 'unavailable') return t('state.unavailable');
       if (snapshot.phase === 'unsupported') return t('state.unsupported');
+      if (snapshot.phase === 'empty') return t('state.empty');
       return t('state.error');
     }
 
@@ -1009,6 +1022,8 @@ window.__ModuleLoader__.load({
         rows.push(h('div', { className: 'dbb-tipNote', key: 'why' }, t('state.unavailableDetail')));
       } else if (snapshot.phase === 'unsupported') {
         rows.push(h('div', { className: 'dbb-tipNote', key: 'why' }, t('state.unsupportedDetail')));
+      } else if (snapshot.phase === 'empty') {
+        rows.push(h('div', { className: 'dbb-tipNote', key: 'why' }, t('state.emptyDetail')));
       } else if (snapshot.phase === 'loading') {
         rows.push(h('div', { className: 'dbb-tipNote', key: 'why' }, t('bubble.refreshing')));
       }
@@ -1059,7 +1074,8 @@ window.__ModuleLoader__.load({
       rows.push(h('div', { className: 'dbb-tipNote', key: 'hint' }, t('bubble.hint')));
       return h('div', {
         className: 'dbb-tip',
-        role: 'tooltip',
+        role: 'dialog',
+        'aria-label': t('bubble.title', { brand }),
         'data-placement': placement,
         'data-level': level,
         style,

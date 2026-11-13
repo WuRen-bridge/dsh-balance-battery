@@ -347,6 +347,7 @@ root.props.onPointerEnter()
 tree = render()
 const tip = byClass(tree, 'dbb-tip')
 check('hovering opens the readout through a portal', flat(tree).some((node) => node.type === 'portal') && tip !== undefined)
+check('the readout is a dialog, not a plain tooltip', tip.props.role === 'dialog', String(tip.props.role))
 check('the readout names the source and the full-scale amount', textOf(tip).includes('DeepSeek 账号 可用余额') && textOf(tip).includes('¥10.00'), textOf(tip))
 check('the readout shows the percentage of the cell', textOf(tip).includes('69%'), textOf(tip))
 check('the readout meter carries the same ruler', byClass(tip, 'dbb-tipTicks') !== undefined)
@@ -506,7 +507,15 @@ balanceReply = { ok: true, value: { status: 'ready', value: [{ currency: 'CNY', 
 face.channel.refresh('account')
 await settle()
 tree = await renderSettled()
-check('a malformed decimal is refused rather than shown as 0', labelText(tree) === 'DeepSeek 账号 ¥0.00' && gauge(tree).props['data-phase'] === 'ready', labelText(tree))
+check('a malformed decimal is refused as no-balance rather than shown as 0', labelText(tree) === 'DeepSeek 账号 无余额' && gauge(tree).props['data-phase'] === 'empty', labelText(tree))
+balanceReply = { ok: true, value: { status: 'ready', value: [], bonusWallets: [] } }
+face.channel.refresh('account')
+await settle()
+tree = await renderSettled()
+check('an empty wallet list is no-balance, not ¥0.00', labelText(tree) === 'DeepSeek 账号 无余额' && gauge(tree).props['data-phase'] === 'empty' && gauge(tree).props['data-off'] === 'true', labelText(tree))
+gauge(tree).props.onPointerEnter()
+tree = render()
+check('the readout explains the empty wallet list', textOf(byClass(tree, 'dbb-tip')).includes('没有返回任何可用余额'), textOf(byClass(tree, 'dbb-tip')))
 
 /* ---------- failure branches ---------- */
 
@@ -621,6 +630,13 @@ kimiTree = await kimiMount.settled()
 gauge(kimiTree).props.onPointerEnter()
 kimiTree = kimiMount.render()
 check('a rejected Kimi key says so', textOf(byClass(kimiTree, 'dbb-tip')).includes('401'), textOf(byClass(kimiTree, 'dbb-tip')))
+routeScripts.kimi = { status: 200, body: { ok: false, provider: 'kimi', error: 'rate-limited' } }
+kimiMount.face.channel.refresh('kimi')
+await settle()
+kimiTree = await kimiMount.settled()
+gauge(kimiTree).props.onPointerEnter()
+kimiTree = kimiMount.render()
+check('a rate-limited Kimi read says so', textOf(byClass(kimiTree, 'dbb-tip')).includes('限流'), textOf(byClass(kimiTree, 'dbb-tip')))
 networkDown = true
 kimiMount.face.channel.refresh('kimi')
 await settle()
