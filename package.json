@@ -5,6 +5,11 @@
   "type": "module",
   "description": "Battery-shaped balance gauge for the DeepSeek Harness Web GUI composer: a battery in the input's tool row whose source is picked by hand — click to cycle or choose DeepSeek account, DeepSeek API key, or Kimi in the hover card; the choice is remembered and a refresh button re-reads the live balance.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WuRen-bridge/dsh-balance-battery.git"
+  },
+  "homepage": "https://github.com/WuRen-bridge/dsh-balance-battery#readme",
   "icon": "./icon.svg",
   "exports": {
     ".": "./index.js",
