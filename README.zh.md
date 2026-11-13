@@ -45,6 +45,12 @@
         └────────────────────────────────────────────┘
 ```
 
+## 快速开始
+
+1. 安装：用 `dsh plugin add` 把本目录装进 `desktop` profile（见 [安装](#安装)）。
+2. 完全退出并重启 DeepSeek Harness Desktop。
+3. 输入框工具行出现一节电池——点它切换 DeepSeek 账号 / DeepSeek API / Kimi。
+
 ## 电量怎么读
 
 | 电池 | 含义 |

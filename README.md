@@ -30,6 +30,12 @@ Hover (or focus with the keyboard) and the readout opens; it carries its own sou
 - **source chips** and a **Refresh** button,
 - a top-up link.
 
+## Quick start
+
+1. Install: `dsh plugin add` this folder into your `desktop` profile (see [Install](#install)).
+2. Fully quit and restart DeepSeek Harness Desktop.
+3. A battery appears in the composer's tool row — click it to switch between DeepSeek account / DeepSeek API / Kimi.
+
 ## How to read the battery
 
 | Battery | Meaning |

@@ -62,38 +62,7 @@ if (existsSync(ASAR)) {
 
 /* ---------- mini React, module table, and page stubs ---------- */
 
-function createFakeReact () {
-  const cells = []
-  let cursor = 0
-  const pending = []
-  const api = {
-    Fragment: Symbol('Fragment'),
-    createElement (type, props, ...children) {
-      return { type, props: props ?? {}, children: children.flat(Infinity).filter((child) => child !== null && child !== undefined && child !== false) }
-    },
-    useState (initial) {
-      const at = cursor++
-      if (!(at in cells)) cells[at] = typeof initial === 'function' ? initial() : initial
-      return [cells[at], (next) => { cells[at] = typeof next === 'function' ? next(cells[at]) : next }]
-    },
-    useRef (initial) { const at = cursor++; if (!(at in cells)) cells[at] = { current: initial }; return cells[at] },
-    useMemo (compute) { cursor += 1; return compute() },
-    useCallback (fn) { cursor += 1; return fn },
-    useEffect (fn) { cursor += 1; pending.push(fn); return undefined },
-    useLayoutEffect (fn) { cursor += 1; pending.push(fn); return undefined },
-    useId () { const at = cursor++; return `r${at}` },
-    useSyncExternalStore (subscribe, getSnapshot) { cursor += 1; return getSnapshot() },
-  }
-  return {
-    api,
-    begin () { cursor = 0; pending.length = 0 },
-    flush () { const queued = pending.splice(0, pending.length); for (const fn of queued) fn() },
-    mark: () => cursor,
-    rewind: (at) => { cursor = at },
-    /** Drop every hook cell: a preview renders a fresh mount, not a re-render. */
-    reset () { cells.length = 0 },
-  }
-}
+import { createFakeReact } from './fake-react.mjs'
 
 const noop = () => {}
 const listeners = new Map()
