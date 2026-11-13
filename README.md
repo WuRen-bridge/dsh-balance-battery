@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/WuRen-bridge/dsh-balance-battery/actions/workflows/ci.yml/badge.svg)](https://github.com/WuRen-bridge/dsh-balance-battery/actions/workflows/ci.yml)
 
+中文 · [English](README.en.md)
+
 > **DSH 专用插件**：本项目深度依赖 DeepSeek Harness 的**未公开内部 API**——浏览器侧的
 > `window.__ModuleLoader__`、`ctx.remote.account`、`modelDirectories`，Host 侧的
 > `ctx.credentials`、`connection.requestRejection`、`webServer`，以及宿主 `--dsw-*` 主题 token。
@@ -126,11 +128,14 @@ const value = await ctx.remote.account.getBalance(client())  // { status: 'ready
 ## 安装
 
 ```powershell
-# 从工作区目录安装进 desktop profile（Desktop 应用运行时也可以直接执行）
-& "D:\deepseekHarness\resources\runtime\cli\bin\dsh.cmd" `
-  plugin --profile desktop add "D:\deepseek-Plugin development\balance-battery"
+# <DSH 安装目录> = DeepSeek Harness 的安装位置
+# <插件目录>     = 本仓库目录（含 package.json 的那个）
+& "<DSH 安装目录>\resources\runtime\cli\bin\dsh.cmd" `
+  plugin --profile desktop add "<插件目录>"
 
 # 然后完全退出并重启 DeepSeek Harness Desktop（进程启动时才组装 profile）
+# 作者本机示例（把两个路径换成你自己的即可）：
+#   & "D:\deepseekHarness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add "D:\deepseek-Plugin development\balance-battery"
 ```
 
 `dsh plugin add` 会把包装进 profile 的 `node_modules`，并把 `dsh-balance-battery` 写进
@@ -142,14 +147,16 @@ const value = await ctx.remote.account.getBalance(client())  // { status: 'ready
 三个不依赖浏览器的开发工具（`test/` 下，不随包发布）：
 
 ```powershell
+# 在仓库根目录执行（需要 Node 18+；CI 用 22 / 24）
 # 1) 浏览器半侧冒烟：加载真实 bundle、跑真实 apply、渲染整个组件并断言行为
-& D:\node.js\node.exe "D:\deepseek-Plugin development\balance-battery\test\balance-smoke.mjs"
+node test/balance-smoke.mjs
 
 # 2) Host 半侧冒烟：捕获真实注册的路由，用脚本化的 fetch/凭据验证密钥、缓存、栅栏与失败分支
-& D:\node.js\node.exe "D:\deepseek-Plugin development\balance-battery\test\host-smoke.mjs"
+node test/host-smoke.mjs
 
 # 3) 外观预览：抓取插件真实样式表 + 宿主真实主题 token 与输入框真实 CSS，拼出静态 HTML
-& D:\node.js\node.exe "D:\deepseek-Plugin development\balance-battery\test\preview.mjs"
+#    （本机没装 DSH 时会退化为无 token 的样式表，仍能生成 HTML）
+node test/preview.mjs
 #    -> test/preview/{composer,states,zoom}-*.html
 ```
 
@@ -158,7 +165,7 @@ const value = await ctx.remote.account.getBalance(client())  // { status: 'ready
 在 GUI 的「插件」页里禁用该 bundle，或者：
 
 ```powershell
-& "D:\deepseekHarness\resources\runtime\cli\bin\dsh.cmd" `
+& "<DSH 安装目录>\resources\runtime\cli\bin\dsh.cmd" `
   plugin --profile desktop remove dsh-balance-battery
 ```
 
