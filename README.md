@@ -1,5 +1,7 @@
 # dsh-balance-battery · 余额电池
 
+[![CI](https://github.com/WuRen-bridge/dsh-balance-battery/actions/workflows/ci.yml/badge.svg)](https://github.com/WuRen-bridge/dsh-balance-battery/actions/workflows/ci.yml)
+
 > **DSH 专用插件**：本项目深度依赖 DeepSeek Harness 的**未公开内部 API**——浏览器侧的
 > `window.__ModuleLoader__`、`ctx.remote.account`、`modelDirectories`，Host 侧的
 > `ctx.credentials`、`connection.requestRejection`、`webServer`，以及宿主 `--dsw-*` 主题 token。
