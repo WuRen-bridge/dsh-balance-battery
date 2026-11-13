@@ -41,6 +41,7 @@
 - **读失败保留上次好数字**：电池仍显示旧值（读数卡标 stale），是"一眼可读"与"绝不显示 0"之间的取舍。
 - **`private: true`、不上 npm**：只走 GitHub 源码分发。
 - **单文件、纯 JS、无构建**：可直接作为宿主客户端 bundle 加载，代价是维护成本。
+- **Windows 优先**：安装 / 卸载只给 Windows PowerShell 的写法——目标用户是 DSH Desktop 的 Windows 用户，不为 macOS / Linux 做投机性适配。
 
 ## 已知限制
 

@@ -104,6 +104,8 @@ Failures carry stable codes: `missing-credential` (with `refs`), `unauthorized`,
 
 ## Install
 
+Windows-first by design: the commands below assume Windows PowerShell.
+
 ```powershell
 # <DSH_DIR>    = where DeepSeek Harness is installed
 # <PLUGIN_DIR> = this repository (the folder holding package.json)

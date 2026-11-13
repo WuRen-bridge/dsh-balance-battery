@@ -127,6 +127,8 @@ const value = await ctx.remote.account.getBalance(client())  // { status: 'ready
 
 ## 安装
 
+本插件按 **Windows 优先** 设计：以下命令假定 Windows PowerShell。
+
 ```powershell
 # <DSH 安装目录> = DeepSeek Harness 的安装位置
 # <插件目录>     = 本仓库目录（含 package.json 的那个）
