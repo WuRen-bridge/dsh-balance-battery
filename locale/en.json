@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Balance battery",
+    "description": "A battery in the composer's tool row: full means one top-up (¥10). The source is picked by hand — click the battery to cycle, or choose DeepSeek account / DeepSeek API / Kimi directly in the hover card; the choice is remembered. A refresh button re-reads the balance on demand."
+  }
+}
