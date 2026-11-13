@@ -54,6 +54,19 @@
  * — without it the bubble renders in place instead of through a portal.
  * Styling uses host `--dsw-*` tokens only; the level colours are the host's own
  * success / warn / error aliases, so the gauge follows the theme.
+ *
+ * Sections (line numbers drift; search the section title instead)
+ * ---------------------------------------------------------------
+ *   ~71   module loader + factory  — React / react-dom from the page table
+ *  ~150   source memory            — readPinnedKind / writePinnedKind
+ *  ~173   dictionaries             — `zh` (the key-set source of truth) + `en`
+ *  ~267   style sheet              — `CSS`, host `--dsw-*` tokens only
+ *  ~348   pure helpers             — parsing, wallet choice, level, provider kind
+ *  ~485   provider tracker         — which source the model bills to
+ *  ~615   balance channel          — one reader per source, shared by every battery
+ *  ~957   the gauge                — Battery, Bubble, stateText
+ * ~1109   the component            — BalanceBattery (fail-loud) + BatteryBody
+ * ~1270   inject + apply           — dictionaries, stylesheet, slot registration
  */
 window.__ModuleLoader__.load({
   id: 'dsh-balance-battery',
