@@ -265,5 +265,15 @@ check('the retry hits api.moonshot.ai', intlAttempts.some((url) => url.includes(
 check('the .ai alias MOONSHOTAI_API_KEY is resolved', body.ref === 'MOONSHOTAI_API_KEY', String(body.ref));
 fetchScript = domesticScript;
 
+console.log('\nkimi — fallback keeps the primary network error');
+credentialScript = { MOONSHOTAI_CN_API_KEY: MOONSHOT_KEY };
+fetchScript = async (url) => {
+  if (String(url).includes('api.moonshot.cn')) throw new Error('offline');
+  return { status: 401, ok: false, json: async () => ({}) };
+};
+res = await call(routes, '/dsh-balance-battery/kimi', { query: '?fresh=1' });
+check('a .cn outage with a .cn key reports network, not a rejected key', jsonOf(res).error === 'network', res.body);
+fetchScript = domesticScript;
+
 console.log(`\n${failures.length === 0 ? 'PASS' : `FAIL (${failures.length})`}: ${failures.join(', ')}`);
 process.exit(failures.length === 0 ? 0 : 1);

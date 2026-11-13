@@ -271,6 +271,13 @@ async function probe(ctx, providerId, fresh) {
     if (secondary.ok === true) {
       return successBody(providerId, credential, secondary.balance, spec.fallback.topUpUrl, fresh);
     }
+    // A 401 from the fallback, when the primary host was unreachable, is not
+    // "the key was rejected": it means the primary site is the one we need but
+    // it cannot be reached. Report the primary's network/timeout failure.
+    const primaryUnreachable = primary.failure?.error === 'network' || primary.failure?.error === 'timeout';
+    if (secondary.failure?.error === 'unauthorized' && primaryUnreachable) {
+      return primary.failure;
+    }
     return secondary.failure;
   }
   return primary.failure;

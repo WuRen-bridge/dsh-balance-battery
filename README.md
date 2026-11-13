@@ -10,6 +10,8 @@ A battery in the tool row of the DeepSeek Harness composer: **full = one top-up 
 
 **You choose what it watches.** Click the battery to cycle the sources (DeepSeek account → DeepSeek API → Kimi → back to account); the hover readout also offers clickable source chips, with the current source highlighted. The choice is stored in the browser and restored on restart; the battery no longer follows the model — switch models freely, it only watches the source you selected. Only the **first** launch adopts the provider the model currently bills to as the initial source (upgrades keep your existing view).
 
+![The battery in the composer (light theme)](test/preview/composer-light.png)
+
 ```
 Before: [+]  [ Workspace write ⌄ ]                          DeepSeek-V41-Flash  High  [↑]
 
