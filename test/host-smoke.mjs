@@ -95,7 +95,7 @@ let credentialScript = {
 let credentialCalls = 0;
 let rejectNext = undefined;
 
-function makeContext({ credentials = true } = {}) {
+function makeContext({ credentials = true, connection = true } = {}) {
   const routes = new Map();
   const ctx = {
     logger: { warn: () => {} },
@@ -109,7 +109,7 @@ function makeContext({ credentials = true } = {}) {
           },
         };
       }
-      if (nameOf === 'connection') {
+      if (nameOf === 'connection' && connection) {
         return {
           requestRejection() {
             if (rejectNext !== undefined) {
@@ -226,6 +226,11 @@ rejectNext = 401;
 const fenced = fetchCalls.length;
 res = await call(routes, '/dsh-balance-battery/kimi', { query: '?fresh=1' });
 check('a rejected request stops before the provider', res.statusCode === 401 && res.body === '' && fetchCalls.length === fenced, `${res.statusCode}/${res.body}`);
+
+console.log('\nconnection fence — fail closed');
+const unfenced = makeContext({ connection: false });
+res = await call(unfenced, '/dsh-balance-battery/kimi', { query: '?fresh=1' });
+check('a missing connection service refuses (403) instead of leaking', res.statusCode === 403 && res.body === '', `${res.statusCode}/${res.body}`);
 
 console.log('\nmethod');
 res = await call(routes, '/dsh-balance-battery/kimi', { method: 'POST' });

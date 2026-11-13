@@ -304,15 +304,20 @@ export function apply(ctx) {
         path,
         handler: async (req, res) => {
           // Browser fence first: another local page must not read these numbers.
+          // Fail closed: a profile without the connection service has no
+          // Host/Origin fence at all, so refuse rather than leak balances.
           try {
             const connection = connectionOf(ctx);
-            if (connection !== null) {
-              const rejection = connection.requestRejection(req);
-              if (rejection !== undefined && rejection !== null && rejection !== false) {
-                res.statusCode = typeof rejection === 'number' ? rejection : 403;
-                res.end();
-                return;
-              }
+            if (connection === null) {
+              res.statusCode = 403;
+              res.end();
+              return;
+            }
+            const rejection = connection.requestRejection(req);
+            if (rejection !== undefined && rejection !== null && rejection !== false) {
+              res.statusCode = typeof rejection === 'number' ? rejection : 403;
+              res.end();
+              return;
             }
           } catch (error) {
             res.statusCode = 403;
