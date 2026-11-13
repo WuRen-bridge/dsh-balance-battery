@@ -3,6 +3,12 @@
 All notable changes to `dsh-balance-battery` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.0] - Unreleased
+
+### Added
+
+- The full amount and the refresh interval are now **configurable** from the readout and remembered in `localStorage` (`dsh-balance-battery/settings`); defaults stay ¥10 and 60 s, and a refresh interval of 0 disables the timer.
+
 ## [1.2.0] - 2026-11-13
 
 First open-source release.

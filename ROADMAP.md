@@ -18,7 +18,7 @@
   - `role="tooltip"` → `role="dialog"` 并补 `aria-label`：气泡内含按钮与链接，按规范应是对话框而非纯提示。
 - **英文 README 成为默认**：`README.md` 为英文，中文在 `README.zh.md`（顶部有语言切换）；安装 / 自检 / 卸载命令去本机化。
 - **Kimi 支持国际站**（`index.js`）：`.cn` 被拒（401/403）或不可达（network/timeout）时，自动重试 `api.moonshot.ai`，并识别 `MOONSHOTAI_API_KEY` 别名。
-- **满格按币种**（`client.js`）：USD 账户用 `$10` 满格并显示 `$`，不再拿 ¥10 除、印 `¥`（`FULL_SCALE_BY_CURRENCY`）。
+- **满格金额与刷新间隔可配置**（`client.js`）：读数卡新增「设置」，满格金额与刷新间隔（秒，0 = 关闭）存 `localStorage`；默认 ¥10 / 60 秒，USD 账户按同一设置显示 `$`。
 
 ## P1 · 计划中（结构性）
 

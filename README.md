@@ -47,7 +47,7 @@ Hover (or focus with the keyboard) and the readout opens; it carries its own sou
 | Full green + amount above ¥10 | available beyond one full cell (e.g. ¥33.32): the cell caps at 100%, the readout still shows the real amount |
 
 Ruler: **¥1 per cell**, ten cells, drawn **over** the fill, so both the spent and the remaining part stay countable.
-`¥10` is `FULL_SCALE` at the top of `client.js` (with `FULL_CURRENCY = 'CNY'`); to change the unit (say ¥20 per top-up), edit those two constants.
+The default is `¥10` per full cell; change the **full amount** and the **refresh interval** (seconds, 0 = off) in the readout's settings — they apply immediately and are remembered locally.
 
 The quantity shown is the **available total**: DeepSeek account = topped up + granted, DeepSeek API key = `total_balance`, Kimi = cash + vouchers. Granted/voucher parts are listed separately in the hover card.
 
@@ -106,6 +106,7 @@ Failures carry stable codes: `missing-credential` (with `refs`), `unauthorized`,
 | Click the battery | cycle the source; if the new source has a cached amount, it shows first and refreshes in the background. |
 | Hover / focus | open the readout: source, amount, percentage, full-scale amount, topped-up/granted (cash/vouchers for Kimi), update time, top-up link, **source chips** and a **refresh button**. The card portals to `document.body` and clamps to the viewport so the composer cannot clip it. |
 | Refresh button | re-read now (the button shows "Reading…" and is disabled until the read settles; the host route is called with `?fresh=1`). |
+| Settings in the readout | change the full amount and the refresh interval (seconds, 0 = off); applied immediately and saved to `localStorage`. |
 | Memory | the manual choice is written to `localStorage` and restored on restart; the first launch adopts the provider the model was on. |
 | Auto refresh | the active source every 60 s; once more when `visibilitychange` brings the window forward. Background refreshes do not pulse. |
 | Fail loud | a render exception is shown at the seat as `battery render failed: …` instead of being swallowed by the slot; a read failure keeps the last good number and marks the reason in the readout. |
@@ -221,7 +222,7 @@ The host route allows `recharge` / `bonus` to be `null` (some providers do not r
 - **Kimi's two sites have separate keys**: it tries `api.moonshot.cn` first and falls back to `api.moonshot.ai` on a rejected key or an unreachable host; keys and top-up pages (`platform.kimi.com` / `platform.kimi.ai`) are not interchangeable.
 - **The API-key routes depend on credential names**: DeepSeek uses `DEEPSEEK_API_KEY`; Kimi tries `MOONSHOTAI_CN_API_KEY`, `MOONSHOTAI_API_KEY`, `MOONSHOT_API_KEY`, then `KIMI_API_KEY`. Renaming an env var requires editing `refs` at the top of `index.js`.
 - **`account` needs a login**: when signed out the battery is grey and says "signed out"; switch to `deepseek` (API-key route) instead.
-- **The full scale is a per-currency constant table**: `FULL_SCALE_BY_CURRENCY` (CNY 10 / USD 10) lives in `client.js`, not a config item.
+- **Full amount and refresh interval are configurable**: defaults are ¥10 per full cell and a 60 s refresh; change them in the readout's settings (stored in `localStorage` under `dsh-balance-battery/settings`).
 - **The 60 s refresh is not real-time**: a spend can take up to 60 s to show; click `Refresh` in the readout to read now.
 - **Two decimals**: providers return floats / decimal strings; the ratio uses the raw value and the readout is shown to two decimals (matching both backends).
 

@@ -533,6 +533,33 @@ check('the source chips follow the active language', chipsOf(byClass(render(), '
 check('the accessible name follows the active language', gauge(render()).props['aria-label'].startsWith('DeepSeek account available balance'), String(gauge(render()).props['aria-label']))
 activeLocale = 'zh'
 
+console.log('\nsettings — full amount and refresh interval')
+tree = await renderSettled()
+check('the settings default to ¥10 full and 60 s', face.channel.getSettings().fullScale === 10 && face.channel.getSettings().refreshIntervalMs === 60000, JSON.stringify(face.channel.getSettings()))
+gauge(tree).props.onPointerEnter()
+tree = render()
+const scaleInput = flat(tree).find((node) => node.props.name === 'fullScale')
+if (scaleInput === undefined) throw new Error('full-scale input missing from the readout')
+scaleInput.props.onChange({ target: { value: '25' } })
+tree = render()
+const saveButton = flat(tree).find((node) => node.props.className === 'dbb-save')
+if (saveButton === undefined) throw new Error('settings save button missing from the readout')
+saveButton.props.onClick({ stopPropagation: noop })
+tree = render()
+check('the full amount follows the setting', face.channel.getSettings().fullScale === 25, JSON.stringify(face.channel.getSettings()))
+check('the cell re-scales from the setting', fillWidth(tree) === '32.4%', String(fillWidth(tree)))
+check('the readout shows the new full amount', textOf(byClass(tree, 'dbb-tip')).includes('¥25.00'), textOf(byClass(tree, 'dbb-tip')))
+check('the setting is persisted', JSON.parse(storage.get('dsh-balance-battery/settings')).fullScale === 25, String(storage.get('dsh-balance-battery/settings')))
+const intervalInput = flat(tree).find((node) => node.props.name === 'interval')
+if (intervalInput === undefined) throw new Error('refresh input missing from the readout')
+intervalInput.props.onChange({ target: { value: '30' } })
+tree = render()
+const saveButton2 = flat(tree).find((node) => node.props.className === 'dbb-save')
+saveButton2.props.onClick({ stopPropagation: noop })
+check('the refresh interval follows the setting', face.channel.getSettings().refreshIntervalMs === 30000, JSON.stringify(face.channel.getSettings()))
+face.channel.setSettings({ fullScale: 10, refreshIntervalMs: 60000 })
+check('settings can be reset to the defaults', face.channel.getSettings().fullScale === 10 && face.channel.getSettings().refreshIntervalMs === 60000, JSON.stringify(face.channel.getSettings()))
+
 /* ---------- fresh mounts: cold-start failures and a bare page ---------- */
 
 /**

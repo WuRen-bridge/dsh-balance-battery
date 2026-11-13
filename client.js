@@ -100,17 +100,19 @@ window.__ModuleLoader__.load({
     /** Currency the full scale is denominated in. */
     const FULL_CURRENCY = 'CNY';
     /**
-     * Amount one full cell stands for, per currency: a USD account gets a $10
-     * full cell instead of dividing by the CNY scale and printing ¥.
+     * Defaults for the two user-tunable settings, persisted under
+     * `SETTINGS_STORAGE_KEY`. The full-scale amount is what one full cell means
+     * in the displayed currency; the refresh interval is how often the active
+     * source is re-read (0 disables the timer).
      */
-    const FULL_SCALE_BY_CURRENCY = { CNY: 10, USD: 10 };
+    const DEFAULT_SETTINGS = Object.freeze({ fullScale: FULL_SCALE, refreshIntervalMs: 60_000 });
+    /** `localStorage` key the user settings persist under. */
+    const SETTINGS_STORAGE_KEY = 'dsh-balance-battery/settings';
     /**
      * Width of one cell in percent, so the ruler in the style sheet follows
      * `FULL_SCALE`: one tick per unit, ten ticks for a ¥10 cell.
      */
     const CELL_PERCENT = 100 / FULL_SCALE;
-    /** Background re-read cadence while the page is visible. */
-    const REFRESH_INTERVAL_MS = 60_000;
     /** Decay of the hover/focus bubble's close timer, in ms (long enough to reach it). */
     const BUBBLE_GRACE_MS = 160;
     /** Bubble width in px; must match `.dbb-tip` so viewport clamping is exact. */
@@ -174,6 +176,42 @@ window.__ModuleLoader__.load({
       }
     }
 
+    /**
+     * Read the persisted user settings. A missing, corrupt or failing store
+     * falls back to `DEFAULT_SETTINGS` instead of throwing.
+     * @returns `{ fullScale, refreshIntervalMs }`.
+     */
+    function readSettings() {
+      try {
+        const raw = window.localStorage?.getItem?.(SETTINGS_STORAGE_KEY);
+        if (typeof raw !== 'string') return DEFAULT_SETTINGS;
+        const parsed = JSON.parse(raw);
+        const fullScale = Number(parsed?.fullScale);
+        const refreshIntervalMs = Number(parsed?.refreshIntervalMs);
+        return Object.freeze({
+          fullScale: Number.isFinite(fullScale) && fullScale > 0 ? fullScale : DEFAULT_SETTINGS.fullScale,
+          refreshIntervalMs: Number.isFinite(refreshIntervalMs) && refreshIntervalMs >= 0
+            ? Math.min(refreshIntervalMs, 600_000)
+            : DEFAULT_SETTINGS.refreshIntervalMs,
+        });
+      } catch (error) {
+        return DEFAULT_SETTINGS;
+      }
+    }
+
+    /**
+     * Persist the user settings. Best effort: an unavailable store costs the
+     * choice across restarts, nothing more.
+     * @param value - the settings to remember.
+     */
+    function writeSettings(value) {
+      try {
+        window.localStorage?.setItem?.(SETTINGS_STORAGE_KEY, JSON.stringify(value));
+      } catch (error) {
+        /* The settings simply stay session-local. */
+      }
+    }
+
     /** Simplified Chinese dictionary (the key-set source of truth). */
     const zh = {
       'battery.title': '可用余额',
@@ -194,6 +232,9 @@ window.__ModuleLoader__.load({
       'menu.title': '余额来源',
       'menu.refresh': '刷新',
       'menu.current': '当前',
+      'settings.scale': '满格金额',
+      'settings.interval': '刷新(秒)',
+      'settings.save': '保存',
       'source.account': 'DeepSeek 账号',
       'source.api': 'DeepSeek API',
       'state.loading': '读取中',
@@ -239,6 +280,9 @@ window.__ModuleLoader__.load({
       'menu.title': 'Balance source',
       'menu.refresh': 'Refresh',
       'menu.current': 'Current',
+      'settings.scale': 'Full amount',
+      'settings.interval': 'Refresh (s)',
+      'settings.save': 'Save',
       'source.account': 'DeepSeek account',
       'source.api': 'DeepSeek API',
       'state.loading': 'Reading',
@@ -346,6 +390,13 @@ window.__ModuleLoader__.load({
       '.dbb-tipChip:focus-visible{box-shadow:0 0 0 2px var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary))}',
       '.dbb-tipChip[data-current=true]{border-color:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-state-business-primary);cursor:default}',
       '.dbb-tipChip:disabled{cursor:default;opacity:.6}',
+      /* --- the settings row ------------------------------------------------- */
+      '.dbb-settings{display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding-top:6px;border-top:1px solid var(--dsw-alias-border-l2)}',
+      '.dbb-setting{display:inline-flex;align-items:center;gap:4px;color:var(--dsw-alias-label-tertiary);font-size:11px}',
+      '.dbb-setting input{width:52px;box-sizing:border-box;padding:2px 4px;border:1px solid var(--dsw-alias-border-l2);border-radius:4px;background:0 0;color:var(--dsw-alias-label-primary);font:inherit;font-size:11px}',
+      '.dbb-setting input:focus{outline:2px solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:-1px}',
+      '.dbb-save{appearance:none;flex:none;border:1px solid var(--dsw-alias-border-l2);border-radius:999px;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;line-height:16px;padding:2px 9px;cursor:pointer;white-space:nowrap}',
+      '.dbb-save:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}',
       '.dbb-diag{color:var(--dsw-alias-label-error);font-size:12px;line-height:18px;white-space:nowrap}',
     ].join('');
 
@@ -388,15 +439,6 @@ window.__ModuleLoader__.load({
     function formatAmount(amount, currency) {
       if (amount === null || amount === undefined || !Number.isFinite(amount)) return '—';
       return `${currencySymbol(currency)}${amount.toFixed(2)}`;
-    }
-
-    /**
-     * The amount one full cell stands for in the given currency.
-     * @param currency - snapshot currency code.
-     * @returns the scale amount (FULL_SCALE for an unlisted currency).
-     */
-    function fullScaleFor(currency) {
-      return FULL_SCALE_BY_CURRENCY[currency] ?? FULL_SCALE;
     }
 
     /**
@@ -671,6 +713,9 @@ window.__ModuleLoader__.load({
       let active = null;
       let timer = null;
       let stopped = false;
+      let started = false;
+      /** User-tunable settings, persisted across restarts. */
+      let settings = readSettings();
       /**
        * The manually chosen source. Null until the first choice: the very
        * first activation adopts the model's source so an upgrade keeps the
@@ -935,15 +980,27 @@ window.__ModuleLoader__.load({
         if (document.visibilityState !== 'hidden' && active !== null) refresh(active, { silent: true });
       };
 
-      const start = () => {
+      /** (Re)arm the auto-refresh timer from the current settings. */
+      const arm = () => {
+        if (timer !== null) {
+          clearInterval(timer);
+          timer = null;
+        }
+        if (!started || stopped || settings.refreshIntervalMs <= 0) return;
         timer = setInterval(() => {
           if (document.visibilityState !== 'hidden' && active !== null) refresh(active, { silent: true });
-        }, REFRESH_INTERVAL_MS);
+        }, settings.refreshIntervalMs);
+      };
+
+      const start = () => {
+        started = true;
         document.addEventListener('visibilitychange', onVisibility);
+        arm();
       };
 
       const stop = () => {
         stopped = true;
+        started = false;
         if (timer !== null) clearInterval(timer);
         timer = null;
         document.removeEventListener('visibilitychange', onVisibility);
@@ -958,6 +1015,29 @@ window.__ModuleLoader__.load({
         getSnapshot: (kind) => snapshots.get(snapshots.has(kind) ? kind : 'unsupported'),
         /** The manually chosen source, or null before the first choice. */
         getPin: () => pinned,
+        /** The user-tunable settings (a stable reference until they change). */
+        getSettings: () => settings,
+        /** Merge a settings patch, persist it, re-arm the timer, and notify. */
+        setSettings: (patch) => {
+          const next = { ...settings, ...patch };
+          const fullScale = Number(next.fullScale);
+          const refreshIntervalMs = Number(next.refreshIntervalMs);
+          settings = Object.freeze({
+            fullScale: Number.isFinite(fullScale) && fullScale > 0 ? fullScale : settings.fullScale,
+            refreshIntervalMs: Number.isFinite(refreshIntervalMs) && refreshIntervalMs >= 0
+              ? Math.min(refreshIntervalMs, 600_000)
+              : settings.refreshIntervalMs,
+          });
+          writeSettings(settings);
+          arm();
+          for (const listener of listeners) {
+            try {
+              listener();
+            } catch (error) {
+              /* A subscriber's own failure is not ours. */
+            }
+          }
+        },
         activateFromModel,
         select,
         cycle,
@@ -1001,8 +1081,8 @@ window.__ModuleLoader__.load({
     }
 
     /** The hover/focus readout: amounts, the source switcher, and the top-up link. */
-    function Bubble({ snapshot, t, brand, kind, channel, style, placement, level, onEnter, onLeave }) {
-      const scale = fullScaleFor(snapshot.currency);
+    function Bubble({ snapshot, t, brand, kind, channel, settings, scaleDraft, intervalDraft, setScaleDraft, setIntervalDraft, onSaveSettings, style, placement, level, onEnter, onLeave }) {
+      const scale = settings.fullScale;
       const ratio = snapshot.amount === null ? 0 : Math.max(0, Math.min(1, snapshot.amount / scale));
       const full = formatAmount(scale, snapshot.currency);
       const parts = partsOf(snapshot.kind);
@@ -1089,6 +1169,43 @@ window.__ModuleLoader__.load({
           },
         }, snapshot.busy === true ? t('bubble.refreshing') : t('menu.refresh')),
       ]));
+      // Two user-tunable settings, edited in place and saved to storage.
+      rows.push(h('div', { className: 'dbb-settings', key: 'settings' }, [
+        h('label', { className: 'dbb-setting', key: 'scale' }, [
+          h('span', { key: 'label' }, t('settings.scale')),
+          h('input', {
+            key: 'input',
+            name: 'fullScale',
+            type: 'number',
+            min: '0.01',
+            step: '0.01',
+            value: scaleDraft,
+            onChange: (event) => setScaleDraft(event.target.value),
+          }),
+        ]),
+        h('label', { className: 'dbb-setting', key: 'interval' }, [
+          h('span', { key: 'label' }, t('settings.interval')),
+          h('input', {
+            key: 'input',
+            name: 'interval',
+            type: 'number',
+            min: '0',
+            max: '600',
+            step: '1',
+            value: intervalDraft,
+            onChange: (event) => setIntervalDraft(event.target.value),
+          }),
+        ]),
+        h('button', {
+          className: 'dbb-save',
+          key: 'save',
+          type: 'button',
+          onClick: (event) => {
+            event.stopPropagation();
+            onSaveSettings();
+          },
+        }, t('settings.save')),
+      ]));
       if (typeof snapshot.topUpUrl === 'string' && snapshot.topUpUrl !== '') {
         rows.push(h('a', {
           className: 'dbb-tipLink',
@@ -1138,10 +1255,25 @@ window.__ModuleLoader__.load({
       const t = props.t;
       const tracked = useSyncExternalStore(tracker.subscribe, tracker.getSnapshot);
       const pinned = useSyncExternalStore(channel.subscribe, channel.getPin);
+      const settings = useSyncExternalStore(channel.subscribe, channel.getSettings);
+      /** Drafts for the settings inputs, committed through `channel.setSettings`. */
+      const [scaleDraft, setScaleDraft] = useState(() => String(settings.fullScale));
+      const [intervalDraft, setIntervalDraft] = useState(() => String(Math.round(settings.refreshIntervalMs / 1000)));
       /** The shown source: the manual pick, or the model's until the first pick lands. */
       const kind = pinned === null ? tracked.kind : pinned;
       const readSnapshot = useCallback(() => channel.getSnapshot(kind), [channel, kind]);
       const snapshot = useSyncExternalStore(channel.subscribe, readSnapshot);
+      const saveSettings = useCallback(() => {
+        const patch = {};
+        const scale = Number(scaleDraft);
+        const seconds = Number(intervalDraft);
+        if (scaleDraft.trim() !== '' && Number.isFinite(scale) && scale > 0) patch.fullScale = scale;
+        if (intervalDraft.trim() !== '' && Number.isFinite(seconds) && seconds >= 0) patch.refreshIntervalMs = seconds * 1000;
+        channel.setSettings(patch);
+        const saved = channel.getSettings();
+        setScaleDraft(String(saved.fullScale));
+        setIntervalDraft(String(Math.round(saved.refreshIntervalMs / 1000)));
+      }, [channel, scaleDraft, intervalDraft]);
       const rootRef = useRef(null);
       const closeTimer = useRef(null);
       const [tip, setTip] = useState(null);
@@ -1161,7 +1293,7 @@ window.__ModuleLoader__.load({
         if (closeTimer.current !== null) clearTimeout(closeTimer.current);
       }, []);
 
-      const scale = fullScaleFor(snapshot.currency);
+      const scale = settings.fullScale;
       const ratio = snapshot.amount === null ? 0 : Math.max(0, Math.min(1, snapshot.amount / scale));
       const fillRatio = energized ? ratio : 0;
       const level = snapshot.phase === 'ready' ? levelOf(ratio) : 'idle';
@@ -1262,6 +1394,12 @@ window.__ModuleLoader__.load({
         brand,
         kind,
         channel,
+        settings,
+        scaleDraft,
+        intervalDraft,
+        setScaleDraft,
+        setIntervalDraft,
+        onSaveSettings: saveSettings,
         level,
         placement: tip.placement,
         style: { left: `${tip.left}px`, top: `${tip.top}px` },
